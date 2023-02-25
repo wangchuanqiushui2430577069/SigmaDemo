@@ -22,6 +22,9 @@ export interface State {
     //now hovering node
     hoveredNode?: string;
 
+    // now dragging node
+    draggedNode?: string;
+
     // State derived from query:
     selectedNode?: string;
 

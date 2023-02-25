@@ -2,8 +2,9 @@
   <div>
     <el-select-v2 v-model="tagsValue" @change="changeTagsOptions" :options="tagsOptions" placeholder="Please select"
       style="width: 240px;height: 50px; margin: 10px;" multiple clearable collapse-tags collapse-tags-tooltip />
-    <el-select-v2 v-model="clusterValue" @change="changeClusterOptions" :options="clusterOptions" placeholder="Please select"
-      style="width: 240px;height: 50px; margin: 10px;" multiple clearable collapse-tags collapse-tags-tooltip />
+    <el-select-v2 v-model="clusterValue" @change="changeClusterOptions" :options="clusterOptions"
+      placeholder="Please select" style="width: 240px;height: 50px; margin: 10px;" multiple clearable collapse-tags
+      collapse-tags-tooltip />
     <div id="card"></div>
   </div>
 </template>
@@ -120,14 +121,21 @@ export default defineComponent({
       drag(renderer, graph)
       // 悬停
       hover(renderer, graph)
+      // 双击节点
+      clickNode(renderer, graph)
+      // 监听
+      listener(renderer, graph)
     }
-    // 拖拽方法
+    // 单击按钮事件
+    let clickNode = (renderer: Sigma, graph: Graph<Attributes, Attributes, Attributes>) => {
+      renderer.on("doubleClickNode", (e) => {
+        console.log("doubleClickNode", graph.getNodeAttributes(e.node))
+      })
+    }
+    // 拖拽和单击方法
     let drag = (renderer: Sigma, graph: Graph<Attributes, Attributes, Attributes>) => {
 
       // TODO: 之后实现拖拽
-      // 当前拖拽节点（dragging node）
-      let draggedNode: string | null = null;
-      let isDragging = false;
 
       // On mouse down on a node
       //  - we enable the drag mode
@@ -135,20 +143,18 @@ export default defineComponent({
       //  - highlight the node
       //  - disable the camera so its state is not updated
       renderer.on("downNode", (e) => {
-        isDragging = true;
-        draggedNode = e.node;
-        graph.setNodeAttribute(draggedNode, "highlighted", true);
+        state.draggedNode = e.node
       });
 
-      // On mouse move, if the drag mode is enabled, we change the position of the draggedNode
+      // 拖拽逻辑On mouse move, if the drag mode is enabled, we change the position of the draggedNode
       renderer.getMouseCaptor().on("mousemovebody", (e) => {
-        if (!isDragging || !draggedNode) return;
+        if (!state.draggedNode) return;
 
         // Get new position of node
         const pos = renderer.viewportToGraph(e);
 
-        graph.setNodeAttribute(draggedNode, "x", pos.x);
-        graph.setNodeAttribute(draggedNode, "y", pos.y);
+        graph.setNodeAttribute(state.draggedNode, "x", pos.x);
+        graph.setNodeAttribute(state.draggedNode, "y", pos.y);
 
         // Prevent sigma to move camera:
         e.preventSigmaDefault();
@@ -158,11 +164,10 @@ export default defineComponent({
 
       // On mouse up, we reset the autoscale and the dragging mode
       renderer.getMouseCaptor().on("mouseup", () => {
-        if (draggedNode) {
-          graph.removeNodeAttribute(draggedNode, "highlighted");
+        if (state.draggedNode) {
+          graph.removeNodeAttribute(state.draggedNode, "highlighted");
+          state.draggedNode = undefined;
         }
-        isDragging = false;
-        draggedNode = null;
       });
 
       // Disable the autoscale at the first down interaction
@@ -173,7 +178,6 @@ export default defineComponent({
     // 悬停方法
     let hover = (renderer: Sigma, graph: Graph<Attributes, Attributes, Attributes>) => {
       // HACK:  实现悬停节点显示领域(Realize the display field of hovering nodes)
-      let state: State = {}
       let setHoveredNode = (node?: string) => {
         if (node) {
           state.hoveredNode = node
@@ -192,7 +196,10 @@ export default defineComponent({
       renderer.on("leaveNode", () => {
         setHoveredNode(undefined)
       });
-
+    }
+    // 监听nodes和edges
+    let listener = (renderer: Sigma, graph: Graph<Attributes, Attributes, Attributes>) => {
+      // 根据内部状态渲染节点：Render nodes accordingly to the internal state:
       renderer.setSetting("nodeReducer", (node, data) => {
         const res: Partial<NodeDisplayData> = { ...data }
         const attributes = graph.getNodeAttributes(node)
@@ -213,7 +220,7 @@ export default defineComponent({
         return res
       });
 
-      // Render edges accordingly to the internal state:
+      // 根据内部状态渲染边缘： Render edges accordingly to the internal state:
       renderer.setSetting("edgeReducer", (edge, data) => {
         const res: Partial<EdgeDisplayData> = { ...data }
         // 隐藏其他关系线(hide other lines and nodes)
@@ -239,7 +246,8 @@ export default defineComponent({
     }
     // 得到所需数据（get data that you need）
     let result = transformData()
-
+    // 节点状态
+    let state: State = {}
     // 拓扑图渲染数据（Topology map rendering data）
     const finalData = ref(result.data)
     // 表单数据（form data）

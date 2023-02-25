@@ -1,5 +1,5 @@
 import { createApp } from 'vue'
-import './style.css'
+// import './style.css'
 import App from './App.vue'
 import HelloWorld from './components/HelloWorld.vue'
 import { provide, reactive } from 'vue'

@@ -44,7 +44,7 @@ export default defineComponent({
     let init = () => {
       const container = document.getElementById("card") as HTMLElement;
       // HACK:转换官方dataset.json数据，为finalData.json数据 (Change official data to finalData.json)
-      // tag=>对应图片（映射）
+      // tag=>对应图片（'tag' Mapping to the image's url）
       let tagImageMap: Map<String, String> = new Map<String, String>();
       data.tags.forEach(tag => tagImageMap.set(tag.key, tag.image))
 
@@ -59,13 +59,13 @@ export default defineComponent({
 
       // 构建节点(Build node)
       data.nodes.forEach(node => {
-        // 初始化sizeMap
+        // build sizeMap
         sizeMap.set(node.key, 1);
       })
       // 构建边(Build edge)
       let edgeIndex = 1
       let edges = data.edges.map(edge => {
-        // 计算size
+        // coculate size
         let size_0 = sizeMap.get(edge[0])
         sizeMap.set(edge[0], size_0 == undefined ? 1 : size_0 + 0.5)
         let size_1 = sizeMap.get(edge[1])
@@ -192,7 +192,7 @@ export default defineComponent({
 }
 
 #card {
-  width: 1920px;
+  width: 100vw;
   height: 100vh;
   margin: 0;
   padding: 0;

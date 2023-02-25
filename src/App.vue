@@ -7,6 +7,9 @@ import HelloWorld from "./components/HelloWorld.vue";
   <HelloWorld />
 </template>
 
-<style scoped>
-
+<style>
+    body {
+      width: 100vw;
+      height: 100vh;
+    }
 </style>

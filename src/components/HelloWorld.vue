@@ -1,9 +1,16 @@
 <template>
-  <div id="card" >
+  <div>
+    <el-select-v2 v-model="tagsValue" @change="changeTagsOptions" :options="tagsOptions" placeholder="Please select"
+      style="width: 240px;height: 50px; margin: 10px;" multiple collapse-tags collapse-tags-tooltip />
+    <el-select-v2 v-model="clusterValue" @change="changeClusterOptions" :options="clusterOptions"
+      placeholder="Please select" style="width: 240px;height: 50px; margin: 10px;" multiple collapse-tags
+      collapse-tags-tooltip />
+    <div id="card"></div>
   </div>
 </template>
 <script lang="ts">
-import { defineComponent, onMounted } from 'vue';
+import { NeedNode, State, NeedData } from '../types/index'
+import { defineComponent, onMounted, ref } from 'vue';
 import Graph from 'graphology';
 import Sigma from 'sigma';
 
@@ -18,31 +25,7 @@ import data from '../../public/dataset.json';
 export default defineComponent({
   name: 'HelloWorld',
   setup() {
-    onMounted(() => {
-      init()
-    })
-
-    /**
-     * the node structure we need
-     */
-    interface NeedNode {
-      key: string;
-      attributes: {
-        cluster: string;
-        label: string;
-        image: String | undefined;
-        type: string;
-        tag: string;
-        size: number | undefined;
-        score: number;
-        x: number;
-        y: number;
-        color: String | undefined;
-        clusterLabel: String | undefined;
-      }
-    };
-    let init = () => {
-      const container = document.getElementById("card") as HTMLElement;
+    let transformData = () => {
       // HACK:转换官方dataset.json数据，为finalData.json数据 (Change official data to finalData.json)
       // tag=>对应图片（'tag' Mapping to the image's url）
       let tagImageMap: Map<String, String> = new Map<String, String>();
@@ -73,7 +56,7 @@ export default defineComponent({
         return { 'key': '' + (++edgeIndex), 'source': edge[0], 'target': edge[1], 'attributes': { 'type': 'arrow', 'size': 1 } }
       })
       // 转换原有节点结构（Transform the original node structure）
-      let nodes = data.nodes.map(node => {
+      let nodes: NeedNode[] = data.nodes.map(node => {
         let nodeTemp = {
           'key': node.key,
           'attributes': {
@@ -84,9 +67,25 @@ export default defineComponent({
         return nodeTemp;
       })
       // 图所需结构(Required structure)
-      let needData = { edges: edges, nodes: nodes }
+      let needData: NeedData = { edges: edges, nodes: nodes }
       console.log('data', data);
       console.log('needData', needData)
+      // init tagsOptions
+      const tempTagsOptions: any[] = [];
+      for (let name of tagImageMap.keys()) {
+        let temp = { value: name, label: name }
+        tempTagsOptions.push(temp)
+      }
+      // init clusterOptions
+      const tempClusterOptions: any[] = [];
+      for (let name of clusterNameMap.values()) {
+        let temp = { value: name, label: name }
+        tempClusterOptions.push(temp)
+      }
+      return { data: needData, cluster: tempClusterOptions, tags: tempTagsOptions };
+    }
+    let init = (needData: NeedData) => {
+      const container = document.getElementById("card") as HTMLElement;
       // 初始化简单图(init graph)
       const graph = new Graph();
       circlepack.assign(graph, {
@@ -113,16 +112,7 @@ export default defineComponent({
       });
       // HACK:  实现悬停节点显示领域(Realize the display field of hovering nodes)
 
-      interface State {
-        //now hovering node
-        hoveredNode?: string;
 
-        // State derived from query:
-        selectedNode?: string;
-
-        // State derived from hovered node:
-        hoveredNeighbors?: Set<string>;
-      }
       let state: State = {};
       let setHoveredNode = (node?: string) => {
         if (node) {
@@ -147,14 +137,14 @@ export default defineComponent({
         const res: Partial<NodeDisplayData> = { ...data };
 
         if (state.hoveredNeighbors && !state.hoveredNeighbors.has(node) && state.hoveredNode !== node) {
-          res.label = "";
-          res.color = "#f6f6f6";
+          res.hidden = true;
+          // res.label = "";
+          // res.color = "#f6f6f6";
           return res;
         }
         // 悬停(hovering time)
         if (state.hoveredNode === node) {
           res.highlighted = true;
-          return res;
         }
         return res;
       });
@@ -174,11 +164,40 @@ export default defineComponent({
         }
         return res;
       });
-
     }
 
+    let changeTagsOptions = (options) => {
+      console.log('options', options);
+    }
+    let changeClusterOptions = (options) => {
+      console.log('options', options);
+    }
+    // 得到所需数据（get data that you need）
+    let result = transformData()
+
+
+    const finalData = ref(result.data)
+    const tagsOptions = ref(result.tags);
+    const tagsValue = ref([])
+    const clusterOptions = ref(result.cluster);
+    const clusterValue = ref([])
+
+    onMounted(() => {
+      init(finalData.value)
+      console.log('tagsValue', tagsValue)
+      console.log('clusterValue', clusterValue)
+    })
+
     return {
-      init
+      tagsValue,
+      tagsOptions,
+      clusterValue,
+      clusterOptions,
+
+      changeTagsOptions,
+      changeClusterOptions,
+
+      init,
     }
   }
 });
@@ -193,7 +212,7 @@ export default defineComponent({
 
 #card {
   width: 100vw;
-  height: 100vh;
+  height: 90vh;
   margin: 0;
   padding: 0;
   overflow: hidden;

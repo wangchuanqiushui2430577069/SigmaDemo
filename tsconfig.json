@@ -15,6 +15,7 @@
     "typeRoots": [
       "src/types"
     ],
+    "types": ["element-plus/global"],
     // 是否自动生成声明文件
     "declaration": true,
     // 设置生成的声明文件存放目录

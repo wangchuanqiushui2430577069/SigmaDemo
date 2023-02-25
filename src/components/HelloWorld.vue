@@ -1,10 +1,9 @@
 <template>
   <div>
     <el-select-v2 v-model="tagsValue" @change="changeTagsOptions" :options="tagsOptions" placeholder="Please select"
-      style="width: 240px;height: 50px; margin: 10px;" multiple collapse-tags collapse-tags-tooltip />
-    <el-select-v2 v-model="clusterValue" @change="changeClusterOptions" :options="clusterOptions"
-      placeholder="Please select" style="width: 240px;height: 50px; margin: 10px;" multiple collapse-tags
-      collapse-tags-tooltip />
+      style="width: 240px;height: 50px; margin: 10px;" multiple clearable collapse-tags collapse-tags-tooltip />
+    <el-select-v2 v-model="clusterValue" @change="changeClusterOptions" :options="clusterOptions" placeholder="Please select"
+      style="width: 240px;height: 50px; margin: 10px;" multiple clearable collapse-tags collapse-tags-tooltip />
     <div id="card"></div>
   </div>
 </template>
@@ -14,17 +13,19 @@ import { defineComponent, onMounted, ref } from 'vue';
 import Graph from 'graphology';
 import Sigma from 'sigma';
 
-import FA2Layout from "graphology-layout-forceatlas2/worker";
-import forceAtlas2 from "graphology-layout-forceatlas2";
+// import FA2Layout from "graphology-layout-forceatlas2/worker";
+// import forceAtlas2 from "graphology-layout-forceatlas2";
 import circlepack from 'graphology-layout/circlepack';
 import getNodeProgramImage from "sigma/rendering/webgl/programs/node.image";
 import { EdgeDisplayData, NodeDisplayData } from 'sigma/types';
 
 import data from '../../public/dataset.json';
+import { Attributes } from 'graphology-types';
 
 export default defineComponent({
   name: 'HelloWorld',
   setup() {
+    // 转换官方原始数据
     let transformData = () => {
       // HACK:转换官方dataset.json数据，为finalData.json数据 (Change official data to finalData.json)
       // tag=>对应图片（'tag' Mapping to the image's url）
@@ -84,20 +85,23 @@ export default defineComponent({
       }
       return { data: needData, cluster: tempClusterOptions, tags: tempTagsOptions };
     }
+    // 初始化拓扑图
     let init = (needData: NeedData) => {
       const container = document.getElementById("card") as HTMLElement
       // 初始化简单图(init graph)
       const graph = new Graph()
+      graph.import(needData)
       circlepack.assign(graph, {
-        hierarchyAttributes: ['cluster'],
+        hierarchyAttributes: ['cluster', 'tag'],
+        scale: 1.0
       })
       // 布局(init layout)
-      const sensibleSettings = forceAtlas2.inferSettings(graph);
-      const fa2Layout = new FA2Layout(graph, {
-        settings: sensibleSettings,
-      })
-      fa2Layout.start()
-      graph.import(needData)
+      // const sensibleSettings = forceAtlas2.inferSettings(graph);
+      // const fa2Layout = new FA2Layout(graph, {
+      //   settings: sensibleSettings,
+      // })
+      // fa2Layout.start()
+
 
       //创建sigma (new a sigma class)
       const renderer = new Sigma(graph, container, {
@@ -107,10 +111,67 @@ export default defineComponent({
         },
         renderEdgeLabels: false, // 不显示边的label
       })
+      // 相机
       renderer.getCamera().setState({
-        angle: 1,
+        angle: 0.5,
       })
 
+      // 拖拽
+      drag(renderer, graph)
+      // 悬停
+      hover(renderer, graph)
+    }
+    // 拖拽方法
+    let drag = (renderer: Sigma, graph: Graph<Attributes, Attributes, Attributes>) => {
+
+      // TODO: 之后实现拖拽
+      // 当前拖拽节点（dragging node）
+      let draggedNode: string | null = null;
+      let isDragging = false;
+
+      // On mouse down on a node
+      //  - we enable the drag mode
+      //  - save in the dragged node in the state
+      //  - highlight the node
+      //  - disable the camera so its state is not updated
+      renderer.on("downNode", (e) => {
+        isDragging = true;
+        draggedNode = e.node;
+        graph.setNodeAttribute(draggedNode, "highlighted", true);
+      });
+
+      // On mouse move, if the drag mode is enabled, we change the position of the draggedNode
+      renderer.getMouseCaptor().on("mousemovebody", (e) => {
+        if (!isDragging || !draggedNode) return;
+
+        // Get new position of node
+        const pos = renderer.viewportToGraph(e);
+
+        graph.setNodeAttribute(draggedNode, "x", pos.x);
+        graph.setNodeAttribute(draggedNode, "y", pos.y);
+
+        // Prevent sigma to move camera:
+        e.preventSigmaDefault();
+        e.original.preventDefault();
+        e.original.stopPropagation();
+      });
+
+      // On mouse up, we reset the autoscale and the dragging mode
+      renderer.getMouseCaptor().on("mouseup", () => {
+        if (draggedNode) {
+          graph.removeNodeAttribute(draggedNode, "highlighted");
+        }
+        isDragging = false;
+        draggedNode = null;
+      });
+
+      // Disable the autoscale at the first down interaction
+      renderer.getMouseCaptor().on("mousedown", () => {
+        if (!renderer.getCustomBBox()) renderer.setCustomBBox(renderer.getBBox());
+      });
+    }
+    // 悬停方法
+    let hover = (renderer: Sigma, graph: Graph<Attributes, Attributes, Attributes>) => {
       // HACK:  实现悬停节点显示领域(Realize the display field of hovering nodes)
       let state: State = {}
       let setHoveredNode = (node?: string) => {
@@ -135,7 +196,8 @@ export default defineComponent({
       renderer.setSetting("nodeReducer", (node, data) => {
         const res: Partial<NodeDisplayData> = { ...data }
         const attributes = graph.getNodeAttributes(node)
-        if (attributes && !(tagsValue.value.includes(attributes.tag) && clusterValue.value.includes(attributes.clusterLabel))) {
+        // 根据选中的标签和集群筛选（Filter by selected tags and clusters）
+        if (!(tagsValue.value.includes(attributes.tag) && clusterValue.value.includes(attributes.clusterLabel))) {
           res.hidden = true;
         }
         if (state.hoveredNeighbors && !state.hoveredNeighbors.has(node) && state.hoveredNode !== node) {
@@ -162,15 +224,16 @@ export default defineComponent({
         if (state.hoveredNode && graph.hasExtremity(edge, state.hoveredNode)) {
           const attributes = graph.getNodeAttributes(state.hoveredNode)
           res.color = attributes.color?.toString()
-          res.size = 3
+          res.size = 2
         }
         return res
       })
     }
-
+    // 改变标签多选列表值
     let changeTagsOptions = (options) => {
       console.log('options', options);
     }
+    // 改变聚类多选列表值
     let changeClusterOptions = (options) => {
       console.log('options', options);
     }

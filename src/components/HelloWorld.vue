@@ -122,17 +122,17 @@ export default defineComponent({
       // 悬停
       hover(renderer, graph)
       // 双击节点
-      clickNode(renderer, graph)
+      doubleClickNode(renderer, graph)
       // 监听
       listener(renderer, graph)
     }
-    // 单击按钮事件
-    let clickNode = (renderer: Sigma, graph: Graph<Attributes, Attributes, Attributes>) => {
+    // 双击按钮事件
+    let doubleClickNode = (renderer: Sigma, graph: Graph<Attributes, Attributes, Attributes>) => {
       renderer.on("doubleClickNode", (e) => {
         console.log("doubleClickNode", graph.getNodeAttributes(e.node))
       })
     }
-    // 拖拽和单击方法
+    // 拖拽方法
     let drag = (renderer: Sigma, graph: Graph<Attributes, Attributes, Attributes>) => {
 
       // TODO: 之后实现拖拽

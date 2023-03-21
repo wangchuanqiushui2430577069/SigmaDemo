@@ -237,12 +237,12 @@ export default defineComponent({
       })
     }
     // 改变标签多选列表值
-    let changeTagsOptions = (options) => {
-      console.log('options', options);
+    let changeTagsOptions = (tags: string[]) => {
+      console.log('tags', tags);
     }
     // 改变聚类多选列表值
-    let changeClusterOptions = (options) => {
-      console.log('options', options);
+    let changeClusterOptions = (cluster: string[]) => {
+      console.log('cluster', cluster);
     }
     // 得到所需数据（get data that you need）
     let result = transformData()

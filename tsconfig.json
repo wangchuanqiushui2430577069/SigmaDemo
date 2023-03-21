@@ -23,7 +23,7 @@
     // 对每个 .d.ts 文件，都生成对应的 .d.ts.map（sourcemap）文件
     "declarationMap": true,
     // 仅生成 .d.ts 文件，不生成 .js 文件
-    "emitDeclarationOnly": true
+    //"emitDeclarationOnly": true
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
   "references": [{ "path": "./tsconfig.node.json" }]
